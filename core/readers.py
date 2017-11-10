@@ -73,7 +73,7 @@ class SonarAngleToPointsTransformer(BaseMultiChannelTransformer):
     ZERO_DISTANCE = "zero_distance"
 
     def _process(self, channels: List, row_replacement=None):
-        if SonarAngleToPointsTransformer.ZERO_DISTANCE not in self._kwargs:
+        if self.ZERO_DISTANCE not in self._kwargs:
             raise ValueError("Sonar initial distance was not provided")
 
         zero_distance = self._kwargs[SonarAngleToPointsTransformer.ZERO_DISTANCE]
@@ -108,10 +108,10 @@ class WheelToRobotTransformer(BaseMultiChannelTransformer):
     WHEEL_BASE_HALF = "base_half"
 
     def _process(self, channels: List, row_replacement=None):
-        if WheelToRobotTransformer.WHEEL_RADIUS not in self._kwargs:
+        if self.WHEEL_RADIUS not in self._kwargs:
             raise ValueError("Wheel radius was not provided")
 
-        if WheelToRobotTransformer.WHEEL_BASE_HALF not in self._kwargs:
+        if self.WHEEL_BASE_HALF not in self._kwargs:
             raise ValueError("Wheel base half was not provided")
 
         radius = self._kwargs[WheelToRobotTransformer.WHEEL_RADIUS]
@@ -120,20 +120,71 @@ class WheelToRobotTransformer(BaseMultiChannelTransformer):
         v_list = []
         w_list = []
 
-        left_list = channels[0]
-        right_list = channels[1]
+        left_list = channels[1]
+        right_list = channels[0]
 
         for row_index in range(0, len(left_list)):
             if row_replacement is not None:
                 v, w = row_replacement(left_list[row_index], right_list[row_index])
             else:
                 v = (right_list[row_index] + left_list[row_index]) * radius / 2.0
-                w = (right_list[row_index] - left_list[row_index]) / (2.0 * base_half)
+                w = (right_list[row_index] - left_list[row_index]) * radius / (2.0 * base_half)
 
             v_list.append(v)
             w_list.append(w)
 
         self._channels = [v_list, w_list]
+
+    @property
+    def number_of_channels(self) -> int:
+        return len(self._channels)
+
+    def channel_at_index(self, index: int) -> List[Any]:
+        return self._channels[index]
+
+
+class DifferentialDriveKinematics(BaseMultiChannelTransformer):
+    INIT_X = "init_x"
+    INIT_Y = "init_y"
+    INIT_ANGLE = "init_angle"
+
+    def _process(self, channels: List, row_replacement=None):
+        if self.INIT_X not in self._kwargs:
+            raise ValueError("Initial robot x position was not provided")
+
+        if self.INIT_Y not in self._kwargs:
+            raise ValueError("Initial robot y position was not provided")
+
+        if self.INIT_ANGLE not in self._kwargs:
+            raise ValueError("Initial robot angle was not provided")
+
+        x = self._kwargs[self.INIT_X]
+        y = self._kwargs[self.INIT_Y]
+        angle = self._kwargs[self.INIT_ANGLE]
+
+        t_list = []
+        x_list = []
+        y_list = []
+        angle_list = []
+
+        for i in range(0, len(channels[0])):
+            t = channels[0][i]
+            t_list.append(t)
+            x_list.append(x)
+            y_list.append(y)
+            angle_list.append(angle)
+
+            if i < len(channels[0]) - 1:
+                v = channels[1][i]
+                w = channels[2][i]
+                t_next = channels[0][i + 1]
+
+                dt = t_next - t
+                x = x + v * dt * math.cos(angle + w * dt)
+                y = y + v * dt * math.sin(angle + w * dt)
+                angle = angle + w * dt
+
+        self._channels = [t_list, x_list, y_list, angle_list]
 
     @property
     def number_of_channels(self) -> int:
@@ -163,7 +214,7 @@ class MultiChannelSynchronizer(BaseMultiChannel):
             elif min_len > len(multi_channel.channel_at_index(0)):
                 min_len = len(multi_channel.channel_at_index(0))
 
-        time_step = (max_time - min_time)/min_len
+        time_step = (max_time - min_time)/(min_len - 1)
 
         reduced_multi_channels = [self._reduce_len(multi_channel, min_len) for multi_channel in bounded_multi_channels]
 
