@@ -7,7 +7,7 @@ camera_log_path = 'resources/log_camera.csv'
 robot_log_path = 'resources/log_robot.csv'
 compass_log_path = 'resources/data_phone_good_1.csv'
 
-wheel_radius = 2.5
+wheel_radius = 2.7
 wheel_base_half = 7.5
 sonar_zero_distance = 13.8
 
@@ -24,6 +24,8 @@ min_time = robot_time_list[0]
 max_time = robot_time_list[-1]
 
 merged = MultiChannelSynchronizer([robot, camera, compass], min_time, max_time)
+
+robot_time_list = robot.channel_at_index(0)
 
 sonar_channel = merged.channel_at_index(1)
 gyro_channel = merged.channel_at_index(2)

@@ -206,20 +206,22 @@ class MultiChannelSynchronizer(BaseMultiChannel):
                                   for multi_channel in multi_channels]
 
         min_len = None
+        min_index = None
 
         for i in range(0, len(bounded_multi_channels)):
             multi_channel = bounded_multi_channels[i]
             if min_len is None:
                 min_len = len(multi_channel.channel_at_index(0))
+                min_index = i
             elif min_len > len(multi_channel.channel_at_index(0)):
                 min_len = len(multi_channel.channel_at_index(0))
-
-        time_step = (max_time - min_time)/(min_len - 1)
+                min_index = i
 
         reduced_multi_channels = [self._reduce_len(multi_channel, min_len) for multi_channel in bounded_multi_channels]
 
         for i in range(0, min_len):
-            channels[0].append(i*time_step)
+            min_multi_channel = bounded_multi_channels[min_index].channel_at_index(0)
+            channels[0].append(min_multi_channel[i])
 
             offset = 1
             for multi_channel in reduced_multi_channels:
