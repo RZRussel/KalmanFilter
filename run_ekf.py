@@ -5,9 +5,9 @@ from core.distribution import GaussDistribution, MultidimensionalDistribution
 from core.parsers import *
 import matplotlib.pyplot as plt
 
-camera_log_path = 'resources/log_camera.csv'
-robot_log_path = 'resources/log_robot.csv'
-compass_log_path = 'resources/data_phone_good_1.csv'
+camera_log_path = 'resources/log_camera_2.csv'
+robot_log_path = 'resources/log_robot_2.csv'
+compass_log_path = 'resources/data_phone_good_2.csv'
 
 wheel_radius = 2.7
 wheel_base_half = 7.5
@@ -21,9 +21,9 @@ camera = CSVMultiChannelReader(path=camera_log_path, delimiter=';', parser=(lamb
 robot = CSVMultiChannelReader(path=robot_log_path, delimiter=';', parser=parse_robot_log_column)
 compass = CSVMultiChannelReader(path=compass_log_path, delimiter=';', parser=parse_phone_log_column)
 
-robot_time_list = robot.channel_at_index(0)
-min_time = robot_time_list[0]
-max_time = robot_time_list[-1]
+camera_time_list = camera.channel_at_index(0)
+min_time = camera_time_list[0]
+max_time = camera_time_list[-1]
 
 merged = MultiChannelSyncTransformer([robot, camera, compass], min_time, max_time)
 
