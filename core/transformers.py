@@ -1,6 +1,7 @@
 import csv
 import math
 from typing import List, Any, Iterator
+from core.processes import DifferentialDriveProcess
 
 
 class BaseMultiChannel:
@@ -143,7 +144,7 @@ class WheelToRobotTransformer(BaseMultiChannelTransformer):
         return self._channels[index]
 
 
-class DifferentialDriveKinematics(BaseMultiChannelTransformer):
+class DifferentialDriveTransformer(BaseMultiChannelTransformer):
     INIT_X = "init_x"
     INIT_Y = "init_y"
     INIT_ANGLE = "init_angle"
@@ -158,9 +159,11 @@ class DifferentialDriveKinematics(BaseMultiChannelTransformer):
         if self.INIT_ANGLE not in self._kwargs:
             raise ValueError("Initial robot angle was not provided")
 
-        x = self._kwargs[self.INIT_X]
-        y = self._kwargs[self.INIT_Y]
-        angle = self._kwargs[self.INIT_ANGLE]
+        init_x = self._kwargs[self.INIT_X]
+        init_y = self._kwargs[self.INIT_Y]
+        init_angle = self._kwargs[self.INIT_ANGLE]
+
+        dd = DifferentialDriveProcess(init_x, init_y, init_angle)
 
         t_list = []
         x_list = []
@@ -170,19 +173,16 @@ class DifferentialDriveKinematics(BaseMultiChannelTransformer):
         for i in range(0, len(channels[0])):
             t = channels[0][i]
             t_list.append(t)
-            x_list.append(x)
-            y_list.append(y)
-            angle_list.append(angle)
+            x_list.append(dd.x)
+            y_list.append(dd.y)
+            angle_list.append(dd.angle)
 
             if i < len(channels[0]) - 1:
                 v = channels[1][i]
                 w = channels[2][i]
                 t_next = channels[0][i + 1]
 
-                dt = t_next - t
-                x = x + v * dt * math.cos(angle + w * dt)
-                y = y + v * dt * math.sin(angle + w * dt)
-                angle = angle + w * dt
+                dd.update(v, w, t_next - t)
 
         self._channels = [t_list, x_list, y_list, angle_list]
 
@@ -194,7 +194,7 @@ class DifferentialDriveKinematics(BaseMultiChannelTransformer):
         return self._channels[index]
 
 
-class MultiChannelSynchronizer(BaseMultiChannel):
+class MultiChannelSyncTransformer(BaseMultiChannel):
     def __init__(self, multi_channels: List[BaseMultiChannel], min_time: float, max_time: float):
         self._synchronize(multi_channels, min_time, max_time)
 

@@ -18,11 +18,11 @@ class BayesFilter:
 
 class KalmanFilter:
     def __init__(self, initial: MultidimensionalDistribution,
-                 state_matrix: np.array,
-                 control_matrix: np.array,
-                 state_noise: MultidimensionalDistribution,
-                 measurement_matrix: np.array,
-                 measurement_noise: MultidimensionalDistribution):
+                 state_matrix: np.array = None,
+                 control_matrix: np.array = None,
+                 state_noise: MultidimensionalDistribution = None,
+                 measurement_matrix: np.array = None,
+                 measurement_noise: MultidimensionalDistribution = None):
 
         self._predicted = initial
         self._updated = initial
@@ -48,20 +48,22 @@ class KalmanFilter:
         self._measurement_noise = measurement_noise
 
     def predict(self, control: np.array):
-        priori_mean = self._state_matrix.dot(self._updated.mean) + self._control_matrix.dot(control)
+        priori_mean = self._predict_state(control)
 
         op_matrix = self._state_matrix.dot(self._updated.covariance).dot(self._state_matrix.transpose())
         priori_covariance = op_matrix + self._state_noise.covariance
 
         self._predicted = MultidimensionalDistribution(mean=priori_mean, covariance=priori_covariance)
 
+    def _predict_state(self, control: np.array) -> np.array:
+        return self._state_matrix.dot(self._updated.mean) + self._control_matrix.dot(control)
+
     def update(self, measurements: np.array):
         op_matrix = self._measurement_matrix.dot(self._predicted.covariance).dot(self._measurement_matrix.transpose())
         op_matrix = np.linalg.inv(op_matrix + self._measurement_noise.covariance)
         kalman_gain = self._predicted.covariance.dot(self._measurement_matrix.transpose()).dot(op_matrix)
 
-        op_matrix = self._measurement_matrix.dot(self._predicted.mean)
-        op_matrix = measurements - op_matrix
+        op_matrix = measurements - self._calculate_measurement()
         op_matrix = kalman_gain.dot(op_matrix)
         posterior_mean = self._predicted.mean + op_matrix
 
@@ -70,6 +72,9 @@ class KalmanFilter:
         posterior_covariance = op_matrix.dot(self._predicted.covariance)
 
         self._updated = MultidimensionalDistribution(mean=posterior_mean, covariance=posterior_covariance)
+
+    def _calculate_measurement(self) -> np.array:
+        return self._measurement_matrix.dot(self._predicted.mean)
 
     def predicted(self) -> MultidimensionalDistribution:
         return self._predicted
