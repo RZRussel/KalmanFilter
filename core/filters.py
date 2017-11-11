@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from core.distribution import MultidimensionalDistribution
 
 
@@ -81,3 +82,126 @@ class KalmanFilter:
 
     def updated(self) -> MultidimensionalDistribution:
         return self._updated
+
+
+class UnscentedKalmanFilter(BayesFilter):
+    def __init__(self, initial: MultidimensionalDistribution,
+                 state_noise: MultidimensionalDistribution = None,
+                 measurement_noise: MultidimensionalDistribution = None,
+                 alpha: float = 1.0,
+                 beta: float = 0.0,
+                 kappa: float = 0.0):
+        self._predicted = initial
+        self._updated = initial
+        self._state_noise = state_noise
+        self._measurement_noise = measurement_noise
+        self._alpha = alpha
+        self._beta = beta
+        self._kappa = kappa
+        self._n = 2*len(initial.mean)
+        self._mean_weights = self._sample_mean_weights()
+        self._cov_weights = self._sample_cov_weights()
+
+    def predict(self, control: np.array):
+        samples = self._sample_points(self._updated, self._state_noise)
+
+        for i in range(0, samples.shape[0]):
+            samples[i] = self._eval_state_func(control, samples[i])
+
+        mean = np.zeros(self._updated.mean.shape)
+        for i in range(0, 2*self._n + 1):
+            mean += self._mean_weights[i]*samples[i]
+
+        cov = np.zeros(self._updated.covariance.shape)
+        for i in range(0, 2*self._n + 1):
+            op_vector = samples[i] - mean
+            op_vector = op_vector.reshape((1, len(op_vector)))
+            cov += self._cov_weights*op_vector.transpose().dot(op_vector)
+
+        self._predicted = MultidimensionalDistribution(mean=mean, covariance=cov)
+
+    def update(self, measurements: np.array):
+        samples = self._sample_points(self._predicted, self._measurement_noise)
+
+        eval_samples = np.zeros(samples.shape)
+        for i in range(0, samples.shape[0]):
+            eval_samples[i] = self._eval_measurement_func(samples[i])
+
+        mean = np.zeros(self._updated.mean.shape)
+        for i in range(0, 2 * self._n + 1):
+            mean += self._mean_weights[i] * samples[i]
+
+        cov = np.zeros(self._updated.covariance.shape)
+        for i in range(0, 2 * self._n + 1):
+            op_vector = eval_samples[i] - mean
+            op_vector = op_vector.reshape((1, len(op_vector)))
+            cov += self._cov_weights * op_vector.transpose().dot(op_vector)
+
+        cross_cov = np.zeros(self._updated.covariance.shape)
+        for i in range(0, 2 * self._n + 1):
+            op_sample = samples[i] - self._predicted.mean
+            op_sample = op_sample.reshape((1, len(op_sample)))
+            op_eval = eval_samples[i] - mean
+            op_eval = op_eval.reshape((1, len(op_eval)))
+            cross_cov += self._cov_weights * op_sample.transpose().dot(op_eval)
+
+        kalman_gain = cross_cov.dot(np.linalg.inv(cov))
+
+        mean_update = self._predicted.mean + kalman_gain.dot(measurements - mean)
+        cov_update = self._predicted.covariance - kalman_gain.dot(cov).dot(kalman_gain.transpose())
+
+        self._updated = MultidimensionalDistribution(mean=mean_update, covariance=cov_update)
+
+    def predicted(self) -> MultidimensionalDistribution:
+        return self._predicted
+
+    def updated(self) -> MultidimensionalDistribution:
+        return self._updated
+
+    def _sample_points(self, distr: MultidimensionalDistribution, noise: MultidimensionalDistribution) -> np.array:
+        mean_aug = np.hstack((distr.mean, noise.mean))
+
+        cov_top = np.hstack((distr.covariance, np.zeros((distr.covariance.shape[0], noise.covariance.shape[1]))))
+        cov_bottom = np.hstack((np.zeros((noise.covariance.shape[0], distr.covariance.shape[1])), noise.covariance))
+        cov_aug = np.vstack((cov_top, cov_bottom))
+
+        samples = np.zeros((2*self._n + 1, len(distr.mean)))
+        samples[0] = mean_aug
+
+        op_matrix = math.sqrt(self._n + self._calculate_lambda())*np.linalg.cholesky(cov_aug).transpose()
+        for i in range(1, self._n + 1):
+            samples[i] = mean_aug + op_matrix[i - 1]
+            samples[self._n + i] = mean_aug - op_matrix[i - 1]
+
+        return samples
+
+    def _sample_mean_weights(self) -> np.array:
+        weights = np.zeros((2 * self._n + 1,))
+
+        lmda = self._calculate_lambda()
+        weights[0] = lmda / (self._n + lmda)
+
+        for i in range(1, 2 * self._n + 1):
+            weights[i] = 1 / (2 * (self._n + lmda))
+
+        return weights
+
+    def _sample_cov_weights(self) -> np.array:
+        weights = np.zeros((2 * self._n + 1,))
+
+        lmda = self._calculate_lambda()
+        weights[0] = lmda / (self._n + lmda) + 1 - self._alpha*self._alpha + self._beta
+
+        for i in range(1, 2 * self._n + 1):
+            weights[i] = 1 / (2 * (self._n + lmda))
+
+        return weights
+
+    def _calculate_lambda(self) -> float:
+        return self._alpha*self._alpha*(self._n + self._kappa) - self._n
+
+    def _eval_state_func(self, control: np.array, point: np.array) -> np.array:
+        raise NotImplementedError()
+
+    def _eval_measurement_func(self, point: np.array) -> np.array:
+        raise NotImplementedError()
