@@ -1,8 +1,9 @@
 import numpy as np
 import math
-import sys
 from core.filters import KalmanFilter
 from core.distribution import MultidimensionalDistribution
+
+K_SONAR_BIG = 1e+4
 
 
 class EKFRobot:
@@ -29,7 +30,7 @@ class EKFRobot:
             if -math.pi/2.0 < angle < math.pi/2.0:
                 sonar = y / math.cos(angle)
             else:
-                sonar = 1e+4
+                sonar = K_SONAR_BIG
 
             gyro = angle
 
@@ -75,9 +76,14 @@ class EKFRobot:
             j[2][1] = 1 / math.cos(angle)
             j[2][2] = y * math.sin(angle) / (math.cos(angle) * math.cos(angle))
         else:
-            j[2][1] = 1e+4
-            j[2][2] = 1e+4
+            j[2][1] = K_SONAR_BIG
+            j[2][2] = K_SONAR_BIG
 
         j[3][2] = 1.0
 
         return j
+
+
+class UKFRobot:
+    def __init__(self, initial: MultidimensionalDistribution):
+        pass
