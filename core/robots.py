@@ -104,8 +104,8 @@ class UKFRobot(BaseRobot):
         def _eval_measurement_func(self, point: np.array):
             return calculate_measurement_func(point)
 
-    def __init__(self, initial: MultidimensionalDistribution):
-        self._ukf = self.UnscentedKalmanFilter(initial)
+    def __init__(self, initial: MultidimensionalDistribution, alpha=1e-3, kappa=0, beta=2):
+        self._ukf = self.UnscentedKalmanFilter(initial=initial, alpha=alpha, kappa=kappa, beta=beta)
 
     def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
         control = np.array([v * dt, w * dt], dtype=float)

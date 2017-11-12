@@ -5,9 +5,9 @@ from core.distribution import GaussDistribution, MultidimensionalDistribution
 from core.parsers import *
 import matplotlib.pyplot as plt
 
-camera_log_path = 'resources/log_camera_2.csv'
-robot_log_path = 'resources/log_robot_2.csv'
-compass_log_path = 'resources/data_phone_good_2.csv'
+camera_log_path = 'resources/log_camera.csv'
+robot_log_path = 'resources/log_robot.csv'
+compass_log_path = 'resources/data_phone_good_1.csv'
 
 wheel_radius = 2.7
 wheel_base_half = 7.5
@@ -71,7 +71,7 @@ x_cam_noise = GaussDistribution(0.0, 25.0)
 y_cam_noise = GaussDistribution(0.0, 25.0)
 gyro_noise = GaussDistribution(0.0, math.radians(5.0))
 
-ukf_robot = UKFRobot(state_noise)
+ukf_robot = UKFRobot(state_noise, alpha=1e-3, kappa=0, beta=2)
 
 for i in range(0, len(merged.channel_at_index(0)) - 1):
     dt = merged.channel_at_index(0)[i+1] - merged.channel_at_index(0)[i]

@@ -83,6 +83,7 @@ class KalmanFilter:
     def updated(self) -> MultidimensionalDistribution:
         return self._updated
 
+UKF_COV_FIX = 1e-6
 
 class BaseUnscentedKalmanFilter(BayesFilter):
     def __init__(self, initial: MultidimensionalDistribution,
@@ -125,6 +126,8 @@ class BaseUnscentedKalmanFilter(BayesFilter):
             op_vector = op_vector.reshape((1, len(op_vector)))
             cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
+        cov = self.fix_covariance(cov)
+
         self._predicted = MultidimensionalDistribution(mean=mean, covariance=cov)
 
     def update(self, measurements: np.array):
@@ -147,6 +150,8 @@ class BaseUnscentedKalmanFilter(BayesFilter):
             op_vector = op_vector.reshape((1, len(op_vector)))
             cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
+        cov = self.fix_covariance(cov)
+
         state_samples = np.zeros((samples.shape[0], x_len))
         for i in range(0, 2 * self._n + 1):
             state_samples[i] = samples[i][:len(self._updated.mean)]
@@ -163,6 +168,8 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
         mean_update = self._predicted.mean + kalman_gain.dot(measurements - mean)
         cov_update = self._predicted.covariance - kalman_gain.dot(cov).dot(kalman_gain.transpose())
+
+        cov_update = self.fix_covariance(cov_update)
 
         self._updated = MultidimensionalDistribution(mean=mean_update, covariance=cov_update)
 
@@ -182,7 +189,8 @@ class BaseUnscentedKalmanFilter(BayesFilter):
         samples = np.zeros((2*self._n + 1, len(mean_aug)))
         samples[0] = mean_aug
 
-        op_matrix = math.sqrt(self._n + self._calculate_lambda())*np.linalg.cholesky(cov_aug).transpose()
+        op_cholesky = np.linalg.cholesky(cov_aug)
+        op_matrix = math.sqrt(self._n + self._calculate_lambda())*op_cholesky.transpose()
         for i in range(1, self._n + 1):
             samples[i] = mean_aug + op_matrix[i - 1]
             samples[self._n + i] = mean_aug - op_matrix[i - 1]
@@ -219,3 +227,9 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
     def _eval_measurement_func(self, point: np.array) -> np.array:
         raise NotImplementedError()
+
+    @staticmethod
+    def fix_covariance(cov: np.array) -> np.array:
+        new_cov = 0.5*cov + 0.5*cov.transpose()
+        new_cov = new_cov + UKF_COV_FIX*np.eye(cov.shape[0], cov.shape[1])
+        return new_cov
