@@ -1,39 +1,52 @@
 import numpy as np
 import math
-import sys
-from core.filters import KalmanFilter
+from core.filters import KalmanFilter, BaseUnscentedKalmanFilter
 from core.distribution import MultidimensionalDistribution
 
+K_SONAR_BIG = 1e+4
 
-class EKFRobot:
+
+def calculate_state_func(control: np.array, state: np.array) -> np.array:
+    x = state[0] + control[0] * math.cos(state[2] + control[1])
+    y = state[1] + control[0] * math.sin(state[2] + control[1])
+    angle = state[2] + control[1]
+
+    return np.array([x, y, angle], dtype=float)
+
+
+def calculate_measurement_func(state: np.array) -> np.array:
+    x_cam = state[0]
+    y_cam = state[1]
+
+    if -math.pi / 2.0 < state[2] < math.pi / 2.0:
+        sonar = state[1] / math.cos(state[2])
+    else:
+        sonar = K_SONAR_BIG
+
+    gyro = state[2]
+
+    return np.array([x_cam, y_cam, sonar, gyro], dtype=float)
+
+
+class BaseRobot:
+    def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
+        raise NotImplementedError()
+
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: MultidimensionalDistribution):
+        raise NotImplementedError()
+
+    @property
+    def state(self) -> np.array:
+        raise NotImplementedError()
+
+
+class EKFRobot(BaseRobot):
     class ExtendedKalmanFilter(KalmanFilter):
         def _predict_state(self, control: np.array):
-            p_x = self._updated.mean[0]
-            p_y = self._updated.mean[1]
-            p_angle = self._updated.mean[2]
-
-            x = p_x + control[0]*math.cos(p_angle + control[1])
-            y = p_y + control[0]*math.sin(p_angle + control[1])
-            angle = p_angle + control[1]
-
-            return np.array([x, y, angle], dtype=float)
+            return calculate_state_func(control, self._updated.mean)
 
         def _calculate_measurement(self):
-            x = self._predicted.mean[0]
-            y = self._predicted.mean[1]
-            angle = self._predicted.mean[2]
-
-            x_cam = x
-            y_cam = y
-
-            if -math.pi/2.0 < angle < math.pi/2.0:
-                sonar = y / math.cos(angle)
-            else:
-                sonar = 1e+4
-
-            gyro = angle
-
-            return np.array([x_cam, y_cam, sonar, gyro], dtype=float)
+            return calculate_measurement_func(self._updated.mean)
 
     def __init__(self, initial: MultidimensionalDistribution):
         self._kf = self.ExtendedKalmanFilter(initial)
@@ -75,9 +88,35 @@ class EKFRobot:
             j[2][1] = 1 / math.cos(angle)
             j[2][2] = y * math.sin(angle) / (math.cos(angle) * math.cos(angle))
         else:
-            j[2][1] = 1e+4
-            j[2][2] = 1e+4
+            j[2][1] = K_SONAR_BIG
+            j[2][2] = K_SONAR_BIG
 
         j[3][2] = 1.0
 
         return j
+
+
+class UKFRobot(BaseRobot):
+    class UnscentedKalmanFilter(BaseUnscentedKalmanFilter):
+        def _eval_state_func(self, control: np.array, point: np.array):
+            return calculate_state_func(control, point)
+
+        def _eval_measurement_func(self, point: np.array):
+            return calculate_measurement_func(point)
+
+    def __init__(self, initial: MultidimensionalDistribution, alpha=1e-3, kappa=0, beta=2):
+        self._ukf = self.UnscentedKalmanFilter(initial=initial, alpha=alpha, kappa=kappa, beta=beta)
+
+    def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
+        control = np.array([v * dt, w * dt], dtype=float)
+        self._ukf.update_state_noise(noise)
+        self._ukf.predict(control)
+
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: MultidimensionalDistribution):
+        measurements = np.array([x_cam, y_cam, sonar, gyro], dtype=float)
+        self._ukf.update_measurement_noise(noise)
+        self._ukf.update(measurements)
+
+    @property
+    def state(self) -> np.array:
+        return self._ukf.updated().mean
