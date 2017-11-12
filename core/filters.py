@@ -111,45 +111,53 @@ class BaseUnscentedKalmanFilter(BayesFilter):
     def predict(self, control: np.array):
         samples = self._sample_points(self._updated, self._state_noise)
 
+        eval_samples = np.zeros((samples.shape[0], len(self._updated.mean)))
         for i in range(0, samples.shape[0]):
-            samples[i] = self._eval_state_func(control, samples[i])
+            eval_samples[i] = self._eval_state_func(control, samples[i])
 
         mean = np.zeros(self._updated.mean.shape)
-        for i in range(0, 2*self._n + 1):
-            mean += self._mean_weights[i]*samples[i]
+        for i in range(0, 2 * self._n + 1):
+            mean += self._mean_weights[i]*eval_samples[i]
 
         cov = np.zeros(self._updated.covariance.shape)
-        for i in range(0, 2*self._n + 1):
-            op_vector = samples[i] - mean
+        for i in range(0, 2 * self._n + 1):
+            op_vector = eval_samples[i] - mean
             op_vector = op_vector.reshape((1, len(op_vector)))
-            cov += self._cov_weights*op_vector.transpose().dot(op_vector)
+            cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
         self._predicted = MultidimensionalDistribution(mean=mean, covariance=cov)
 
     def update(self, measurements: np.array):
         samples = self._sample_points(self._predicted, self._measurement_noise)
 
-        eval_samples = np.zeros(samples.shape)
+        x_len = len(self._updated.mean)
+        z_len = len(measurements)
+
+        eval_samples = np.zeros((samples.shape[0], z_len))
         for i in range(0, samples.shape[0]):
             eval_samples[i] = self._eval_measurement_func(samples[i])
 
-        mean = np.zeros(self._updated.mean.shape)
+        mean = np.zeros((z_len,))
         for i in range(0, 2 * self._n + 1):
-            mean += self._mean_weights[i] * samples[i]
+            mean += self._mean_weights[i] * eval_samples[i]
 
-        cov = np.zeros(self._updated.covariance.shape)
+        cov = np.zeros((z_len, z_len))
         for i in range(0, 2 * self._n + 1):
             op_vector = eval_samples[i] - mean
             op_vector = op_vector.reshape((1, len(op_vector)))
-            cov += self._cov_weights * op_vector.transpose().dot(op_vector)
+            cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
-        cross_cov = np.zeros(self._updated.covariance.shape)
+        state_samples = np.zeros((samples.shape[0], x_len))
         for i in range(0, 2 * self._n + 1):
-            op_sample = samples[i] - self._predicted.mean
+            state_samples[i] = samples[i][:len(self._updated.mean)]
+
+        cross_cov = np.zeros((x_len, z_len))
+        for i in range(0, 2 * self._n + 1):
+            op_sample = state_samples[i] - self._predicted.mean
             op_sample = op_sample.reshape((1, len(op_sample)))
             op_eval = eval_samples[i] - mean
             op_eval = op_eval.reshape((1, len(op_eval)))
-            cross_cov += self._cov_weights * op_sample.transpose().dot(op_eval)
+            cross_cov += self._cov_weights[i] * op_sample.transpose().dot(op_eval)
 
         kalman_gain = cross_cov.dot(np.linalg.inv(cov))
 
@@ -171,7 +179,7 @@ class BaseUnscentedKalmanFilter(BayesFilter):
         cov_bottom = np.hstack((np.zeros((noise.covariance.shape[0], distr.covariance.shape[1])), noise.covariance))
         cov_aug = np.vstack((cov_top, cov_bottom))
 
-        samples = np.zeros((2*self._n + 1, len(distr.mean)))
+        samples = np.zeros((2*self._n + 1, len(mean_aug)))
         samples[0] = mean_aug
 
         op_matrix = math.sqrt(self._n + self._calculate_lambda())*np.linalg.cholesky(cov_aug).transpose()
