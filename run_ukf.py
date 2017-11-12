@@ -1,6 +1,6 @@
 from core.transformers import CSVMultiChannelReader, SonarAngleToPointsTransformer, WheelToRobotTransformer, \
     MultiChannelSyncTransformer, DifferentialDriveTransformer
-from core.robots import EKFRobot
+from core.robots import UKFRobot
 from core.distribution import GaussDistribution, MultidimensionalDistribution
 from core.parsers import *
 import matplotlib.pyplot as plt
@@ -71,7 +71,7 @@ x_cam_noise = GaussDistribution(0.0, 25.0)
 y_cam_noise = GaussDistribution(0.0, 25.0)
 gyro_noise = GaussDistribution(0.0, math.radians(5.0))
 
-ekf_robot = EKFRobot(state_noise)
+ukf_robot = UKFRobot(state_noise)
 
 for i in range(0, len(merged.channel_at_index(0)) - 1):
     dt = merged.channel_at_index(0)[i+1] - merged.channel_at_index(0)[i]
@@ -79,7 +79,7 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
     v = v_channel[i]
     w = w_channel[i]
 
-    ekf_robot.predict(v, w, dt, state_noise)
+    ukf_robot.predict(v, w, dt, state_noise)
 
     x_cam = merged.channel_at_index(5)[i]
     y_cam = merged.channel_at_index(6)[i]
@@ -94,10 +94,10 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
 
     measurement_noise = MultidimensionalDistribution([x_cam_noise, y_cam_noise, sonar_noise, gyro_noise])
 
-    ekf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
+    ukf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
 
-    x_kalman.append(ekf_robot.state[0])
-    y_kalman.append(ekf_robot.state[1])
+    x_kalman.append(ukf_robot.state[0])
+    y_kalman.append(ukf_robot.state[1])
 
 plt.plot(x_kalman, y_kalman, 'c.')
 

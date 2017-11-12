@@ -84,7 +84,7 @@ class KalmanFilter:
         return self._updated
 
 
-class UnscentedKalmanFilter(BayesFilter):
+class BaseUnscentedKalmanFilter(BayesFilter):
     def __init__(self, initial: MultidimensionalDistribution,
                  state_noise: MultidimensionalDistribution = None,
                  measurement_noise: MultidimensionalDistribution = None,
@@ -101,6 +101,12 @@ class UnscentedKalmanFilter(BayesFilter):
         self._n = 2*len(initial.mean)
         self._mean_weights = self._sample_mean_weights()
         self._cov_weights = self._sample_cov_weights()
+
+    def update_state_noise(self, noise: MultidimensionalDistribution):
+        self._state_noise = noise
+
+    def update_measurement_noise(self, noise: MultidimensionalDistribution):
+        self._measurement_noise = noise
 
     def predict(self, control: np.array):
         samples = self._sample_points(self._updated, self._state_noise)
