@@ -1,13 +1,13 @@
 import numpy as np
 import math
-from core.distribution import MultidimensionalDistribution
+from core.distribution import BaseDistribution, GaussDistribution
 
 
 class BayesFilter:
-    def predicted(self) -> MultidimensionalDistribution:
+    def predicted(self) -> BaseDistribution:
         raise NotImplementedError()
 
-    def updated(self) -> MultidimensionalDistribution:
+    def updated(self) -> BaseDistribution:
         raise NotImplementedError()
 
     def predict(self, control: np.array):
@@ -18,12 +18,12 @@ class BayesFilter:
 
 
 class KalmanFilter:
-    def __init__(self, initial: MultidimensionalDistribution,
+    def __init__(self, initial: GaussDistribution,
                  state_matrix: np.array = None,
                  control_matrix: np.array = None,
-                 state_noise: MultidimensionalDistribution = None,
+                 state_noise: GaussDistribution = None,
                  measurement_matrix: np.array = None,
-                 measurement_noise: MultidimensionalDistribution = None):
+                 measurement_noise: GaussDistribution = None):
 
         self._predicted = initial
         self._updated = initial
@@ -39,13 +39,13 @@ class KalmanFilter:
     def update_control_matrix(self, control_matrix: np.array):
         self._control_matrix = control_matrix
 
-    def update_state_noise(self, state_noise: MultidimensionalDistribution):
+    def update_state_noise(self, state_noise: GaussDistribution):
         self._state_noise = state_noise
 
     def update_measurement_matrix(self, measurement_matrix: np.array):
         self._measurement_matrix = measurement_matrix
 
-    def update_measurement_noise(self, measurement_noise: MultidimensionalDistribution):
+    def update_measurement_noise(self, measurement_noise: GaussDistribution):
         self._measurement_noise = measurement_noise
 
     def predict(self, control: np.array):
@@ -54,7 +54,7 @@ class KalmanFilter:
         op_matrix = self._state_matrix.dot(self._updated.covariance).dot(self._state_matrix.transpose())
         priori_covariance = op_matrix + self._state_noise.covariance
 
-        self._predicted = MultidimensionalDistribution(mean=priori_mean, covariance=priori_covariance)
+        self._predicted = GaussDistribution(mean=priori_mean, covariance=priori_covariance)
 
     def _predict_state(self, control: np.array) -> np.array:
         return self._state_matrix.dot(self._updated.mean) + self._control_matrix.dot(control)
@@ -72,23 +72,24 @@ class KalmanFilter:
         op_matrix = (np.eye(N=op_matrix.shape[0], M=op_matrix.shape[1]) - op_matrix)
         posterior_covariance = op_matrix.dot(self._predicted.covariance)
 
-        self._updated = MultidimensionalDistribution(mean=posterior_mean, covariance=posterior_covariance)
+        self._updated = GaussDistribution(mean=posterior_mean, covariance=posterior_covariance)
 
     def _calculate_measurement(self) -> np.array:
         return self._measurement_matrix.dot(self._predicted.mean)
 
-    def predicted(self) -> MultidimensionalDistribution:
+    def predicted(self) -> GaussDistribution:
         return self._predicted
 
-    def updated(self) -> MultidimensionalDistribution:
+    def updated(self) -> GaussDistribution:
         return self._updated
 
 UKF_COV_FIX = 1e-6
 
+
 class BaseUnscentedKalmanFilter(BayesFilter):
-    def __init__(self, initial: MultidimensionalDistribution,
-                 state_noise: MultidimensionalDistribution = None,
-                 measurement_noise: MultidimensionalDistribution = None,
+    def __init__(self, initial: GaussDistribution,
+                 state_noise: GaussDistribution = None,
+                 measurement_noise: GaussDistribution = None,
                  alpha: float = 1.0,
                  beta: float = 0.0,
                  kappa: float = 0.0):
@@ -103,10 +104,10 @@ class BaseUnscentedKalmanFilter(BayesFilter):
         self._mean_weights = self._sample_mean_weights()
         self._cov_weights = self._sample_cov_weights()
 
-    def update_state_noise(self, noise: MultidimensionalDistribution):
+    def update_state_noise(self, noise: GaussDistribution):
         self._state_noise = noise
 
-    def update_measurement_noise(self, noise: MultidimensionalDistribution):
+    def update_measurement_noise(self, noise: GaussDistribution):
         self._measurement_noise = noise
 
     def predict(self, control: np.array):
@@ -128,7 +129,7 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
         cov = self.fix_covariance(cov)
 
-        self._predicted = MultidimensionalDistribution(mean=mean, covariance=cov)
+        self._predicted = GaussDistribution(mean=mean, covariance=cov)
 
     def update(self, measurements: np.array):
         samples = self._sample_points(self._predicted, self._measurement_noise)
@@ -171,15 +172,15 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
         cov_update = self.fix_covariance(cov_update)
 
-        self._updated = MultidimensionalDistribution(mean=mean_update, covariance=cov_update)
+        self._updated = GaussDistribution(mean=mean_update, covariance=cov_update)
 
-    def predicted(self) -> MultidimensionalDistribution:
+    def predicted(self) -> GaussDistribution:
         return self._predicted
 
-    def updated(self) -> MultidimensionalDistribution:
+    def updated(self) -> GaussDistribution:
         return self._updated
 
-    def _sample_points(self, distr: MultidimensionalDistribution, noise: MultidimensionalDistribution) -> np.array:
+    def _sample_points(self, distr: GaussDistribution, noise: GaussDistribution) -> np.array:
         mean_aug = np.hstack((distr.mean, noise.mean))
 
         cov_top = np.hstack((distr.covariance, np.zeros((distr.covariance.shape[0], noise.covariance.shape[1]))))
@@ -233,3 +234,32 @@ class BaseUnscentedKalmanFilter(BayesFilter):
         new_cov = 0.5*cov + 0.5*cov.transpose()
         new_cov = new_cov + UKF_COV_FIX*np.eye(cov.shape[0], cov.shape[1])
         return new_cov
+
+
+class BaseParticleFilter(BayesFilter):
+    def __init__(self, sample_size: int):
+        self._sample_size = sample_size
+
+    def predict(self, control: np.array):
+        self._sample = self._sample_state(control)
+
+    def update(self, measurements: np.array):
+        pass
+
+    def predicted(self) -> BaseDistribution:
+        pass
+
+    def updated(self) -> BaseDistribution:
+        pass
+
+    def _sample_state(self, control: np.array) -> np.array:
+        raise NotImplementedError()
+
+    def _calculate_weights(self, measurements: np.array) -> np.array:
+        raise NotImplementedError()
+
+    def _resample(self, weights: np.array):
+        norm = sum(weights)
+
+        for i in range(0, len(weights)):
+            self._sample[i] = weights[i]*self._sample[i]/norm

@@ -1,17 +1,17 @@
 from unittest import TestCase
 import numpy as np
 from core.filters import KalmanFilter
-from core.distribution import MultidimensionalDistribution
+from core.distribution import GaussDistribution
 
 
 class TestKalmanFilter(TestCase):
     def test_initialization(self):
-        init_distr = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
+        init_distr = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
         state_matrix = np.array([[1, 0], [0, 1]], dtype=float)
         control_matrix = np.array([[2, 0], [0, 2]], dtype=float)
-        state_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
+        state_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
         measurement_matrix = np.array([[1, 0], [0, 1]], dtype=float)
-        measurement_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
+        measurement_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
 
         kalman = KalmanFilter(init_distr, state_matrix,
                               control_matrix,
@@ -32,12 +32,12 @@ class TestKalmanFilter(TestCase):
         self.assertTrue(np.array_equal(kalman._measurement_noise.covariance, measurement_noise.covariance))
 
     def test_update(self):
-        init_distr = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
+        init_distr = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
         state_matrix = np.array([[1, 0], [0, 1]], dtype=float)
         control_matrix = np.array([[2, 0], [0, 2]], dtype=float)
-        state_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
+        state_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
         measurement_matrix = np.array([[1, 0], [0, 1]], dtype=float)
-        measurement_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
+        measurement_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
 
         kalman = KalmanFilter(init_distr, state_matrix,
                               control_matrix,
@@ -51,13 +51,13 @@ class TestKalmanFilter(TestCase):
         updated_control_matrix = np.array([[2, 3], [3, 3]], dtype=float)
         kalman.update_control_matrix(updated_control_matrix)
 
-        updated_state_noise = MultidimensionalDistribution(mean=np.array([1, 0]), covariance=np.diag([0.2, 0.2]))
+        updated_state_noise = GaussDistribution(mean=np.array([1, 0]), covariance=np.diag([0.2, 0.2]))
         kalman.update_state_noise(updated_state_noise)
 
         updated_measurement_matrix = np.array([[2, 2], [2, 2]], dtype=float)
         kalman.update_measurement_matrix(updated_measurement_matrix)
 
-        updated_measurement_noise = MultidimensionalDistribution(mean=np.array([1, 1]), covariance=np.diag([2.0, 2.0]))
+        updated_measurement_noise = GaussDistribution(mean=np.array([1, 1]), covariance=np.diag([2.0, 2.0]))
         kalman.update_measurement_noise(updated_measurement_noise)
 
         self.assertTrue(np.array_equal(kalman._state_matrix, updated_state_matrix))
@@ -69,12 +69,12 @@ class TestKalmanFilter(TestCase):
         self.assertTrue(np.array_equal(kalman._measurement_noise.covariance, updated_measurement_noise.covariance))
 
     def test_priori(self):
-        init_distr = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.1, 0.1]))
+        init_distr = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.1, 0.1]))
         state_matrix = np.array([[1, 0], [0, 1]], dtype=float)
         control_matrix = np.array([[2, 0], [0, 2]], dtype=float)
-        state_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
+        state_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([0.3, 0.2]))
         measurement_matrix = np.array([[1, 0], [0, 1]], dtype=float)
-        measurement_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
+        measurement_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([1.0, 1.0]))
 
         kalman = KalmanFilter(init_distr, state_matrix,
                               control_matrix,
@@ -91,12 +91,12 @@ class TestKalmanFilter(TestCase):
         self.assertTrue(np.array_equal(kalman.predicted().mean, np.array([4.0, 4.0], dtype=float)))
 
     def test_posteriori(self):
-        init_distr = MultidimensionalDistribution(mean=np.array([1, -1]), covariance=np.diag([1, 1]))
+        init_distr = GaussDistribution(mean=np.array([1, -1]), covariance=np.diag([1, 1]))
         state_matrix = np.array([[1, -0.5], [0.5, 1]], dtype=float)
         control_matrix = np.array([[0, 0], [0, 0]], dtype=float)
-        state_noise = MultidimensionalDistribution(mean=np.array([0, 0]), covariance=np.diag([1, 1]))
+        state_noise = GaussDistribution(mean=np.array([0, 0]), covariance=np.diag([1, 1]))
         measurement_matrix = np.array([[1, 2]], dtype=float)
-        measurement_noise = MultidimensionalDistribution(mean=np.array([[0]]), covariance=np.diag([1.0]))
+        measurement_noise = GaussDistribution(mean=np.array([[0]]), covariance=np.diag([1.0]))
 
         kalman = KalmanFilter(init_distr, state_matrix,
                               control_matrix,

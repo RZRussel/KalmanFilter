@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from core.filters import KalmanFilter, BaseUnscentedKalmanFilter
-from core.distribution import MultidimensionalDistribution
+from core.distribution import GaussDistribution
 
 K_SONAR_BIG = 1e+4
 
@@ -29,10 +29,10 @@ def calculate_measurement_func(state: np.array) -> np.array:
 
 
 class BaseRobot:
-    def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
+    def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
         raise NotImplementedError()
 
-    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: MultidimensionalDistribution):
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: GaussDistribution):
         raise NotImplementedError()
 
     @property
@@ -48,17 +48,17 @@ class EKFRobot(BaseRobot):
         def _calculate_measurement(self):
             return calculate_measurement_func(self._updated.mean)
 
-    def __init__(self, initial: MultidimensionalDistribution):
+    def __init__(self, initial: GaussDistribution):
         self._kf = self.ExtendedKalmanFilter(initial)
 
-    def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
+    def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
         control = np.array([v*dt, w*dt], dtype=float)
         state_matrix = self._calculate_state_jacobian(control)
         self._kf.update_state_matrix(state_matrix)
         self._kf.update_state_noise(noise)
         self._kf.predict(control)
 
-    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: MultidimensionalDistribution):
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: GaussDistribution):
         measurements = np.array([x_cam, y_cam, sonar, gyro], dtype=float)
         measurement_matrix = self._calculate_measurement_jacobian()
         self._kf.update_measurement_matrix(measurement_matrix)
@@ -104,15 +104,15 @@ class UKFRobot(BaseRobot):
         def _eval_measurement_func(self, point: np.array):
             return calculate_measurement_func(point)
 
-    def __init__(self, initial: MultidimensionalDistribution, alpha=1e-3, kappa=0, beta=2):
+    def __init__(self, initial: GaussDistribution, alpha=1e-3, kappa=0, beta=2):
         self._ukf = self.UnscentedKalmanFilter(initial=initial, alpha=alpha, kappa=kappa, beta=beta)
 
-    def predict(self, v: float, w: float, dt: float, noise: MultidimensionalDistribution):
+    def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
         control = np.array([v * dt, w * dt], dtype=float)
         self._ukf.update_state_noise(noise)
         self._ukf.predict(control)
 
-    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: MultidimensionalDistribution):
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: GaussDistribution):
         measurements = np.array([x_cam, y_cam, sonar, gyro], dtype=float)
         self._ukf.update_measurement_noise(noise)
         self._ukf.update(measurements)
