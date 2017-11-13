@@ -1,6 +1,6 @@
 from core.transformers import CSVMultiChannelReader, SonarAngleToPointsTransformer, WheelToRobotTransformer, \
     MultiChannelSyncTransformer, DifferentialDriveTransformer
-from core.robots import UKFRobot
+from core.robots import PFRobot
 from core.distribution import GaussDistribution
 from core.parsers import *
 import matplotlib.pyplot as plt
@@ -65,14 +65,16 @@ y_kalman = []
 x_noise = (0.0, 100.0)
 y_noise = (0.0, 100.0)
 angle_noise = (0.0, math.radians(25.0))
-state_noise = GaussDistribution.create_independent(mean=[x_noise[0], y_noise[0], angle_noise[0]],
-                                                   variances=[x_noise[1], y_noise[1], angle_noise[1]])
+initial = GaussDistribution.create_independent(mean=[x_noise[0], y_noise[0], angle_noise[0]],
+                                                variances=[x_noise[1], y_noise[1], angle_noise[1]])
 
 x_cam_noise = (0.0, 25.0)
 y_cam_noise = (0.0, 25.0)
 gyro_noise = (0.0, math.radians(16.0))
 
-ukf_robot = UKFRobot(state_noise, alpha=1e-3, kappa=0, beta=2)
+pf_robot = PFRobot(initial=initial, sample_size=1000)
+
+state_noise = GaussDistribution.create_independent(mean=[0, 0], variances=[25.0, math.radians(25.0)])
 
 for i in range(0, len(merged.channel_at_index(0)) - 1):
     dt = merged.channel_at_index(0)[i+1] - merged.channel_at_index(0)[i]
@@ -80,7 +82,7 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
     v = v_channel[i]
     w = w_channel[i]
 
-    ukf_robot.predict(v, w, dt, state_noise)
+    pf_robot.predict(v, w, dt, state_noise)
 
     x_cam = merged.channel_at_index(5)[i]
     y_cam = merged.channel_at_index(6)[i]
@@ -98,10 +100,10 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
     measurement_noise = GaussDistribution.create_independent(mean=measurement_noise_mean,
                                                              variances=measurement_noise_vars)
 
-    ukf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
+    pf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
 
-    x_kalman.append(ukf_robot.state[0])
-    y_kalman.append(ukf_robot.state[1])
+    x_kalman.append(pf_robot.state[0])
+    y_kalman.append(pf_robot.state[1])
 
 plt.plot(x_kalman, y_kalman, 'c.')
 
