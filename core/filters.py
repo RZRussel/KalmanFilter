@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from core.distribution import BaseDistribution, GaussDistribution
+from core.distribution import BaseDistribution, GaussDistribution, NaiveSampleDistribution
 
 
 class BayesFilter:
@@ -237,20 +237,33 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
 
 class BaseParticleFilter(BayesFilter):
-    def __init__(self, sample_size: int):
+    def __init__(self, sample_size: int, initial: BaseDistribution):
         self._sample_size = sample_size
 
+        samples = np.array((sample_size, len(initial.mean)))
+        for i in range(0, sample_size):
+            samples[i] = initial.sample()
+
+        sample_distr = NaiveSampleDistribution(samples)
+
+        self._predicted = sample_distr
+        self._updated = sample_distr
+
     def predict(self, control: np.array):
-        self._sample = self._sample_state(control)
+        samples = self._sample_state(control)
+        self._predicted = NaiveSampleDistribution(samples)
 
     def update(self, measurements: np.array):
-        pass
+        weights = self._calculate_weights(measurements)
+        samples = self._resample(weights)
+
+        self._updated = NaiveSampleDistribution(samples)
 
     def predicted(self) -> BaseDistribution:
-        pass
+        return self._predicted
 
     def updated(self) -> BaseDistribution:
-        pass
+        return self._updated
 
     def _sample_state(self, control: np.array) -> np.array:
         raise NotImplementedError()
@@ -258,8 +271,12 @@ class BaseParticleFilter(BayesFilter):
     def _calculate_weights(self, measurements: np.array) -> np.array:
         raise NotImplementedError()
 
-    def _resample(self, weights: np.array):
+    def _resample(self, weights: np.array) -> np.array:
         norm = sum(weights)
 
+        old_samples = self._predicted.samples
+        new_samples = np.zeros(old_samples.shape)
         for i in range(0, len(weights)):
-            self._sample[i] = weights[i]*self._sample[i]/norm
+            new_samples[i] = weights[i]*old_samples[i]/norm
+
+        return new_samples

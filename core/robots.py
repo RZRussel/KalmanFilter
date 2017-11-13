@@ -84,7 +84,7 @@ class EKFRobot(BaseRobot):
 
         j = np.eye(4, 3)
 
-        if -math.pi/2.0 < angle < math.pi:
+        if -math.pi/2.0 < angle < math.pi/2.0:
             j[2][1] = 1 / math.cos(angle)
             j[2][2] = y * math.sin(angle) / (math.cos(angle) * math.cos(angle))
         else:
