@@ -74,7 +74,7 @@ gyro_noise = (0.0, math.radians(16.0))
 
 pf_robot = PFRobot(initial=initial, sample_size=1000)
 
-state_noise = GaussDistribution.create_independent(mean=[0, 0], variances=[1.0, 1.0])
+state_noise = GaussDistribution.create_independent(mean=[0, 0], variances=[25.0, math.radians(25.0)])
 
 for i in range(0, len(merged.channel_at_index(0)) - 1):
     dt = merged.channel_at_index(0)[i+1] - merged.channel_at_index(0)[i]

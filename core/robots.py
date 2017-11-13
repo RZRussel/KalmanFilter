@@ -127,8 +127,8 @@ class UKFRobot(BaseRobot):
 class PFRobot(BaseRobot):
     class ParticleFilter(BaseParticleFilter):
 
-        def __init__(self, initial: BaseDistribution, sample_size: int):
-            super().__init__(initial, sample_size)
+        def __init__(self, initial: BaseDistribution, sample_size: int, resampling_threshold: float):
+            super().__init__(initial, sample_size, resampling_threshold)
 
             self._state_noise = None
             self._measurement_noise = None
@@ -151,20 +151,22 @@ class PFRobot(BaseRobot):
             return sample
 
         def _calculate_weights(self, measurements: np.array) -> np.array:
-            weights = np.full((self._sample_size,), 1.0)
+            n = self._predicted.samples.shape[0]
+            weights = np.full((n,), 1.0)
 
             cov = self._measurement_noise.covariance
-            for i in range(0, len(weights)):
+            for i in range(0, n):
                 pred_measurement = calculate_measurement_func(self._predicted.samples[i])
                 distr = scipy.stats.multivariate_normal(pred_measurement, cov)
                 weights[i] = distr.pdf(measurements)
 
             weights += 1e-300
+            weights /= sum(weights)
 
             return weights
 
-    def __init__(self, initial: GaussDistribution, sample_size: int = 1000):
-        self._pf = self.ParticleFilter(initial, sample_size)
+    def __init__(self, initial: GaussDistribution, sample_size: int = 1000, resampling_threshold: float = 500):
+        self._pf = self.ParticleFilter(initial, sample_size, resampling_threshold)
 
     def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
         control = np.array([v*dt, w*dt], dtype=float)

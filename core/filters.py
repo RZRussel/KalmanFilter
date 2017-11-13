@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from core.distribution import BaseDistribution, GaussDistribution, NaiveSampleDistribution
-
+from numpy import random
 
 class BayesFilter:
     def predicted(self) -> BaseDistribution:
@@ -237,8 +237,7 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
 
 class BaseParticleFilter(BayesFilter):
-    def __init__(self, initial: BaseDistribution, sample_size: int):
-        self._sample_size = sample_size
+    def __init__(self, initial: BaseDistribution, sample_size: int, resampling_threshold: float):
 
         samples = np.zeros((sample_size, len(initial.mean)))
         for i in range(0, sample_size):
@@ -247,24 +246,50 @@ class BaseParticleFilter(BayesFilter):
         weights = np.full((sample_size, 1), 1.0)
         sample_distr = NaiveSampleDistribution(samples, weights)
 
+        self._resampling_threshold = resampling_threshold
+
         self._predicted = sample_distr
         self._updated = sample_distr
 
     def predict(self, control: np.array):
         samples = self._sample_state(control)
 
-        weights = np.full((self._sample_size, 1), 1.0)
+        weights = np.full((samples.shape[0], 1), 1.0)
         self._predicted = NaiveSampleDistribution(samples, weights)
 
     def update(self, measurements: np.array):
         weights = self._calculate_weights(measurements)
         self._updated = NaiveSampleDistribution(self._predicted.samples, weights)
 
+        if self.neff(weights) < self._resampling_threshold:
+            self._resample()
+
     def predicted(self) -> BaseDistribution:
         return self._predicted
 
     def updated(self) -> BaseDistribution:
         return self._updated
+
+    def _resample(self):
+        samples = self._updated.samples
+        weights = self._updated.weights
+
+        n = samples.shape[0]
+        cumulative_sum = np.cumsum(weights)
+        cumulative_sum[-1] = 1.0
+        indexes = np.searchsorted(cumulative_sum, np.random.random(n))
+
+        new_samples = np.zeros((len(indexes), samples.shape[1]))
+        for i in range(0, len(indexes)):
+            new_samples[i] = samples[indexes[i]]
+
+        new_weights = np.full(weights.shape, 1 / n)
+
+        self._updated = NaiveSampleDistribution(new_samples, new_weights)
+
+    @staticmethod
+    def neff(weights: np.array) -> float:
+        return 1 / sum(np.square(weights))
 
     def _sample_state(self, control: np.array) -> np.array:
         raise NotImplementedError()
