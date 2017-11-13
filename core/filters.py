@@ -242,7 +242,7 @@ class BaseParticleFilter(BayesFilter):
 
         samples = np.zeros((sample_size, len(initial.mean)))
         for i in range(0, sample_size):
-            samples[i] = np.array(initial.sample())
+            samples[i] = initial.sample()
 
         weights = np.full((sample_size, 1), 1.0)
         sample_distr = NaiveSampleDistribution(samples, weights)

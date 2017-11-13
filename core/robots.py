@@ -145,7 +145,8 @@ class PFRobot(BaseRobot):
 
             for i in range(0, prev_sample.shape[0]):
                 sample_control = control + self._state_noise.sample()
-                sample[i] = calculate_state_func(sample_control, prev_sample[i])
+                sample_control[1] %= 2*math.pi
+                sample[i] = calculate_state_func(control, prev_sample[i])
 
             return sample
 
@@ -158,13 +159,15 @@ class PFRobot(BaseRobot):
                 distr = scipy.stats.multivariate_normal(pred_measurement, cov)
                 weights[i] = distr.pdf(measurements)
 
+            weights += 1e-300
+
             return weights
 
     def __init__(self, initial: GaussDistribution, sample_size: int = 1000):
         self._pf = self.ParticleFilter(initial, sample_size)
 
     def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
-        control = np.array([v * dt, w * dt], dtype=float)
+        control = np.array([v*dt, w*dt], dtype=float)
         self._pf.update_state_noise(noise)
         self._pf.predict(control)
 
