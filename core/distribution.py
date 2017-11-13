@@ -42,23 +42,28 @@ class GaussDistribution(BaseDistribution):
 
 
 class NaiveSampleDistribution(BaseDistribution):
-    def __init__(self, samples: np.array):
-        if samples.shape[0] < 1:
-            raise ValueError("Sample list must contain more than one item")
+    def __init__(self, samples: np.array, weights: np.array):
+        if len(samples) != len(weights):
+            raise ValueError("Sample length must match weights length")
 
         self._samples = samples
+        self._weights = weights
 
     @property
     def samples(self) -> np.array:
         return self._samples
 
     @property
+    def weights(self) -> np.array:
+        return self._weights
+
+    @property
     def mean(self) -> np.array:
-        return np.mean(a=self._samples, axis=0)
+        return np.average(a=self._samples, weights=self._weights, axis=0)
 
     @property
     def covariance(self) -> np.array:
-        return np.cov(self._samples.transpose())
+        return np.diag(np.average((self._samples - self.mean) ** 2, weights=self._weights, axis=0))
 
     def sample(self) -> np.array:
         n = self._samples.shape[0]

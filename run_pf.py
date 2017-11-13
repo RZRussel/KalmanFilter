@@ -1,7 +1,7 @@
 from core.transformers import CSVMultiChannelReader, SonarAngleToPointsTransformer, WheelToRobotTransformer, \
     MultiChannelSyncTransformer, DifferentialDriveTransformer
-from core.robots import EKFRobot
-from core.distribution import GaussDistribution, MultidimensionalDistribution
+from core.robots import PFRobot
+from core.distribution import GaussDistribution
 from core.parsers import *
 import matplotlib.pyplot as plt
 
@@ -62,16 +62,19 @@ plt.plot(x_kinemat, y_kinemat, 'b.')
 x_kalman = []
 y_kalman = []
 
-x_noise = GaussDistribution(0.0, 100.0)
-y_noise = GaussDistribution(0.0, 100.0)
-angle_noise = GaussDistribution(0.0, math.radians(10.0))
-state_noise = MultidimensionalDistribution([x_noise, y_noise, angle_noise])
+x_noise = (0.0, 100.0)
+y_noise = (0.0, 100.0)
+angle_noise = (0.0, math.radians(25.0))
+initial = GaussDistribution.create_independent(mean=[x_noise[0], y_noise[0], angle_noise[0]],
+                                                variances=[x_noise[1], y_noise[1], angle_noise[1]])
 
-x_cam_noise = GaussDistribution(0.0, 25.0)
-y_cam_noise = GaussDistribution(0.0, 25.0)
-gyro_noise = GaussDistribution(0.0, math.radians(5.0))
+x_cam_noise = (0.0, 25.0)
+y_cam_noise = (0.0, 25.0)
+gyro_noise = (0.0, math.radians(16.0))
 
-ekf_robot = EKFRobot(state_noise)
+pf_robot = PFRobot(initial=initial, sample_size=1000)
+
+state_noise = GaussDistribution.create_independent(mean=[0, 0], variances=[1.0, 1.0])
 
 for i in range(0, len(merged.channel_at_index(0)) - 1):
     dt = merged.channel_at_index(0)[i+1] - merged.channel_at_index(0)[i]
@@ -79,7 +82,7 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
     v = v_channel[i]
     w = w_channel[i]
 
-    ekf_robot.predict(v, w, dt, state_noise)
+    pf_robot.predict(v, w, dt, state_noise)
 
     x_cam = merged.channel_at_index(5)[i]
     y_cam = merged.channel_at_index(6)[i]
@@ -88,16 +91,19 @@ for i in range(0, len(merged.channel_at_index(0)) - 1):
     gyro = merged.channel_at_index(2)[i]
 
     if -math.radians(-30) < gyro < math.radians(30):
-        sonar_noise = GaussDistribution(0.0, 100.0)
+        sonar_noise = (0.0, 4.0)
     else:
-        sonar_noise = GaussDistribution(0.0, 1e+10)
+        sonar_noise = (0.0, 1e+6)
 
-    measurement_noise = MultidimensionalDistribution([x_cam_noise, y_cam_noise, sonar_noise, gyro_noise])
+    measurement_noise_mean = [x_cam_noise[0], y_cam_noise[0], sonar_noise[0], gyro_noise[0]]
+    measurement_noise_vars = [x_cam_noise[1], y_cam_noise[1], sonar_noise[1], gyro_noise[1]]
+    measurement_noise = GaussDistribution.create_independent(mean=measurement_noise_mean,
+                                                             variances=measurement_noise_vars)
 
-    ekf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
+    pf_robot.update(x_cam, y_cam, sonar, gyro, measurement_noise)
 
-    x_kalman.append(ekf_robot.state[0])
-    y_kalman.append(ekf_robot.state[1])
+    x_kalman.append(pf_robot.state[0])
+    y_kalman.append(pf_robot.state[1])
 
 plt.plot(x_kalman, y_kalman, 'c.')
 

@@ -237,27 +237,28 @@ class BaseUnscentedKalmanFilter(BayesFilter):
 
 
 class BaseParticleFilter(BayesFilter):
-    def __init__(self, sample_size: int, initial: BaseDistribution):
+    def __init__(self, initial: BaseDistribution, sample_size: int):
         self._sample_size = sample_size
 
-        samples = np.array((sample_size, len(initial.mean)))
+        samples = np.zeros((sample_size, len(initial.mean)))
         for i in range(0, sample_size):
-            samples[i] = initial.sample()
+            samples[i] = np.array(initial.sample())
 
-        sample_distr = NaiveSampleDistribution(samples)
+        weights = np.full((sample_size, 1), 1.0)
+        sample_distr = NaiveSampleDistribution(samples, weights)
 
         self._predicted = sample_distr
         self._updated = sample_distr
 
     def predict(self, control: np.array):
         samples = self._sample_state(control)
-        self._predicted = NaiveSampleDistribution(samples)
+
+        weights = np.full((self._sample_size, 1), 1.0)
+        self._predicted = NaiveSampleDistribution(samples, weights)
 
     def update(self, measurements: np.array):
         weights = self._calculate_weights(measurements)
-        samples = self._resample(weights)
-
-        self._updated = NaiveSampleDistribution(samples)
+        self._updated = NaiveSampleDistribution(self._predicted.samples, weights)
 
     def predicted(self) -> BaseDistribution:
         return self._predicted
@@ -270,13 +271,3 @@ class BaseParticleFilter(BayesFilter):
 
     def _calculate_weights(self, measurements: np.array) -> np.array:
         raise NotImplementedError()
-
-    def _resample(self, weights: np.array) -> np.array:
-        norm = sum(weights)
-
-        old_samples = self._predicted.samples
-        new_samples = np.zeros(old_samples.shape)
-        for i in range(0, len(weights)):
-            new_samples[i] = weights[i]*old_samples[i]/norm
-
-        return new_samples

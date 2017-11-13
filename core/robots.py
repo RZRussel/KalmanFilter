@@ -1,7 +1,9 @@
 import numpy as np
+import scipy
+from scipy import stats
 import math
-from core.filters import KalmanFilter, BaseUnscentedKalmanFilter
-from core.distribution import GaussDistribution
+from core.filters import KalmanFilter, BaseUnscentedKalmanFilter, BaseParticleFilter
+from core.distribution import GaussDistribution, BaseDistribution
 
 K_SONAR_BIG = 1e+4
 
@@ -120,3 +122,57 @@ class UKFRobot(BaseRobot):
     @property
     def state(self) -> np.array:
         return self._ukf.updated().mean
+
+
+class PFRobot(BaseRobot):
+    class ParticleFilter(BaseParticleFilter):
+
+        def __init__(self, initial: BaseDistribution, sample_size: int):
+            super().__init__(initial, sample_size)
+
+            self._state_noise = None
+            self._measurement_noise = None
+
+        def update_state_noise(self, noise: BaseDistribution):
+            self._state_noise = noise
+
+        def update_measurement_noise(self, noise: BaseDistribution):
+            self._measurement_noise = noise
+
+        def _sample_state(self, control: np.array) -> np.array:
+            prev_sample = self._updated.samples
+            sample = np.zeros(prev_sample.shape)
+
+            for i in range(0, prev_sample.shape[0]):
+                sample_control = control + self._state_noise.sample()
+                sample[i] = calculate_state_func(sample_control, prev_sample[i])
+
+            return sample
+
+        def _calculate_weights(self, measurements: np.array) -> np.array:
+            weights = np.full((self._sample_size,), 1.0)
+
+            cov = self._measurement_noise.covariance
+            for i in range(0, len(weights)):
+                pred_measurement = calculate_measurement_func(self._predicted.samples[i])
+                distr = scipy.stats.multivariate_normal(pred_measurement, cov)
+                weights[i] = distr.pdf(measurements)
+
+            return weights
+
+    def __init__(self, initial: GaussDistribution, sample_size: int = 1000):
+        self._pf = self.ParticleFilter(initial, sample_size)
+
+    def predict(self, v: float, w: float, dt: float, noise: GaussDistribution):
+        control = np.array([v * dt, w * dt], dtype=float)
+        self._pf.update_state_noise(noise)
+        self._pf.predict(control)
+
+    def update(self, x_cam: float, y_cam: float, sonar: float, gyro: float, noise: GaussDistribution):
+        measurements = np.array([x_cam, y_cam, sonar, gyro], dtype=float)
+        self._pf.update_measurement_noise(noise)
+        self._pf.update(measurements)
+
+    @property
+    def state(self) -> np.array:
+        return self._pf.updated().mean

@@ -55,10 +55,12 @@ class TestNaiveSampleDistribution(TestCase):
 
         n = 100
         samples = np.zeros((n, 2))
+        weights = np.zeros((n,))
         for i in range(0, n):
             samples[i] = multi_distr.sample()
+            weights[i] = 1.0
 
-        sample_distr = NaiveSampleDistribution(samples)
+        sample_distr = NaiveSampleDistribution(samples, weights)
         sample_mean = sample_distr.mean
 
         for i in range(0, len(mean)):
@@ -72,10 +74,12 @@ class TestNaiveSampleDistribution(TestCase):
 
         n = 100
         samples = np.zeros((n, 2))
+        weights = np.zeros((n,))
         for i in range(0, n):
             samples[i] = multi_distr.sample()
+            weights[i] = 1.0
 
-        sample_distr = NaiveSampleDistribution(samples)
+        sample_distr = NaiveSampleDistribution(samples, weights)
         sample_cov = sample_distr.covariance
 
         for i in range(0, len(mean)):
@@ -89,10 +93,12 @@ class TestNaiveSampleDistribution(TestCase):
 
         n = 100
         samples = np.zeros((n, 2))
+        weights = np.zeros((n,))
         for i in range(0, n):
             samples[i] = multi_distr.sample()
+            weights[i] = 1.0
 
-        sample_distr = NaiveSampleDistribution(samples)
+        sample_distr = NaiveSampleDistribution(samples, weights)
 
         for i in range(0, n):
             self.assertTrue(sample_distr.sample() in samples)
