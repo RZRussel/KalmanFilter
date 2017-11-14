@@ -45,8 +45,8 @@ State space of the robot contains 3 dimensions: x, y of the robot position and r
 initialized with normal distribution with mean vector ```[0, 0, 0]``` and variance vector ```[100, 100, rad(25)]```. 
 For the EKF and UKF applications error was picked as additive Gaussian noise with mean vector ```[0, 0, 0]``` 
 and variance vector ```[100, 100, rad(25)]```. For Particle filter, error in state transition model was incorporated 
-directly to linear and angular velocities as Gaussian distribution with mean ```[0, 0]``` and variance 
-```[25, rad(25)]```.
+directly to linear and angular velocities as additive Gaussian distribution with mean ```[0, 0]``` and variance 
+```[25, rad(25)]```. This approach was chosen to demonstrate that Particle filter can handle any distributions.
 
 Measurements space contains 4 dimensions: x, y coordinates from the camera, distance from sonar and angle from gyro. 
 For all filters it was assumed that error is additive Gaussian noise with mean ```[0, 0, 0, 0]``` and variance 
