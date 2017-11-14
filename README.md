@@ -1,10 +1,10 @@
 # Description
 Project is designed to provide implementations of different filters based on probabilistic Bayes algorithm. 
 Currently, there are implementations for:
-* Kalman filter;
-* Extended Kalman filter;
-* Unscented Kalman filter;
-* Particle filter;
+* Kalman filter
+* Extended Kalman filter
+* Unscented Kalman filter
+* Particle filter
 
 Moreover the project includes example of the application of the algorithms to the differential drive robot case.
 
@@ -37,3 +37,24 @@ The data can be found in ```resources/``` directory of the project. For one traj
 there are 2 files: ```resources/log_robot*.csv``` and ```resources/log_camera*.csv```. First file consists of
 5 columns and contains timestamp, sonar distance, gyro angle, left and right wheel rotation speed per
 measurement. Second file contains timestamp, x and y coordinates of the robot per measurement.
+
+Because of the fact that Kalman filter is applicable only to linear models but
+motion model for differential drive robot is non-linear we only consider applications of the EKF, UKF and PF below.
+
+State space of the robot contains 3 dimensions: x, y of the robot position and rotation angle. Initial state was
+initialized with normal distribution with mean vector ```[0, 0, 0]``` and variance vector ```[100, 100, rad(25)]```. 
+For the EKF and UKF applications error was picked as additive Gaussian noise with mean vector ```[0, 0, 0]``` 
+and variance vector ```[100, 100, rad(25)]```. For Particle filter, error in state transition model was incorporated 
+directly to linear and angular velocities also as Gaussian distribution with mean ```[0, 0]``` and variance 
+```[25, rad(25)]```.
+
+Measurements space contains 4 dimensions: x, y coordinates from the camera, distance from sonar and angle from gyro. 
+For all filters it was assumed that error is additive Gaussian noise with mean ```[0, 0, 0, 0]``` and variance 
+```[49, 49, 4, rad(25)]```. But for the states where sonar data are too incorrect the corresponding variance was 
+replaced with high one (1e+6) to give the sensor less trust.
+
+![Extended Kalman Filter result](https://s17.postimg.org/bge7sd0pb/ekf.png)
+
+![Unscented Kalman Filter result]((https://s17.postimg.org/yhusy4fsf/ukf.png))
+
+![Particle Filter result](https://s17.postimg.org/uy8v8b5cv/image.png)
