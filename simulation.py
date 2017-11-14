@@ -18,8 +18,8 @@ class BaseSimulation:
     init_y = 0.0
     init_angle = 0.0
 
-    x_cam_noise = (0.0, 25.0)
-    y_cam_noise = (0.0, 25.0)
+    x_cam_noise = (0.0, 49.0)
+    y_cam_noise = (0.0, 49.0)
     gyro_noise = (0.0, math.radians(16.0))
 
     sonar_normal_noise = (0.0, 4.0)
@@ -112,8 +112,3 @@ class RobotResultSimulation(BaseSimulation):
 
         plt.legend(loc='upper right')
         plt.show()
-
-
-class RobotsComparisonSimulation(BaseSimulation):
-    def show(self):
-        pass

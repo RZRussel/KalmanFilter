@@ -5,7 +5,7 @@ import math
 from core.filters import KalmanFilter, BaseUnscentedKalmanFilter, BaseParticleFilter
 from core.distribution import GaussDistribution, BaseDistribution
 
-K_SONAR_BIG = 1e+4
+K_SONAR_BIG = 255
 
 
 def calculate_state_func(control: np.array, state: np.array) -> np.array:

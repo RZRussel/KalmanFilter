@@ -127,6 +127,8 @@ class BaseUnscentedKalmanFilter(BayesFilter):
             op_vector = op_vector.reshape((1, len(op_vector)))
             cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
+        cov += self._state_noise.covariance
+
         cov = self.fix_covariance(cov)
 
         self._predicted = GaussDistribution(mean=mean, covariance=cov)
@@ -151,6 +153,7 @@ class BaseUnscentedKalmanFilter(BayesFilter):
             op_vector = op_vector.reshape((1, len(op_vector)))
             cov += self._cov_weights[i] * op_vector.transpose().dot(op_vector)
 
+        cov += self._measurement_noise.covariance
         cov = self.fix_covariance(cov)
 
         state_samples = np.zeros((samples.shape[0], x_len))
