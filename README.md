@@ -1,10 +1,10 @@
 # Description
 Project is designed to provide implementations of different filters based on probabilistic Bayes algorithm. 
 Currently, there are implementations for:
-..* Kalman filter;
-..* Extended Kalman filter;
-..* Unscented Kalman filter;
-..* Particle filter;
+* Kalman filter;
+* Extended Kalman filter;
+* Unscented Kalman filter;
+* Particle filter;
 
 Moreover the project includes example of the application of the algorithms to the differential drive robot case.
 
