@@ -53,6 +53,8 @@ For all filters it was assumed that error is additive Gaussian noise with mean `
 ```[49, 49, 4, rad(25)]```. But for the states where sonar data are too incorrect the corresponding variance was 
 replaced with high one (1e+6) to give the sensor less trust.
 
+Plots below demonstrates estimation of the robot position (x,y) from different sources and comparison with result of application of the particular filter. To display the sonar data x coordinate was chosen the same as for camera.
+
 ![Extended Kalman Filter result](https://s17.postimg.org/bge7sd0pb/ekf.png)
 
 ![Unscented Kalman Filter result](https://s17.postimg.org/yhusy4fsf/ukf.png)
