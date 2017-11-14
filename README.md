@@ -34,7 +34,7 @@ To build robot's motion model standard differential drive kinematics
 [equations](https://chess.eecs.berkeley.edu/eecs149/documentation/differentialDrive.pdf) were used.
 
 The data can be found in ```resources/``` directory of the project. For one trajectory
-there are 2 files: ```resources/log_robot*.csv``` and ```resources/log_camera*.csv```. First file consists of
+there are 2 files: ```resources/log_robot_2.csv``` and ```resources/log_camera_2.csv```. First file consists of
 5 columns and contains timestamp, sonar distance, gyro angle, left and right wheel rotation speed per
 measurement. Second file contains timestamp, x and y coordinates of the robot per measurement.
 
@@ -45,7 +45,7 @@ State space of the robot contains 3 dimensions: x, y of the robot position and r
 initialized with normal distribution with mean vector ```[0, 0, 0]``` and variance vector ```[100, 100, rad(25)]```. 
 For the EKF and UKF applications error was picked as additive Gaussian noise with mean vector ```[0, 0, 0]``` 
 and variance vector ```[100, 100, rad(25)]```. For Particle filter, error in state transition model was incorporated 
-directly to linear and angular velocities also as Gaussian distribution with mean ```[0, 0]``` and variance 
+directly to linear and angular velocities as Gaussian distribution with mean ```[0, 0]``` and variance 
 ```[25, rad(25)]```.
 
 Measurements space contains 4 dimensions: x, y coordinates from the camera, distance from sonar and angle from gyro. 
